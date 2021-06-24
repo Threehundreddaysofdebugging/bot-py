@@ -26,7 +26,9 @@ def start(message):
 
 @bot.message_handler(commands=['back'])
 def back(message):
-    pass  # TODO возврат на предыдущий шаг или в начало
+    # TODO возврат на предыдущий шаг или в начало
+    if user_step[message.chat.id] > 0:
+        user_step[message.chat.id] -= 1
 
 
 @bot.message_handler(commands=['sell'])
@@ -86,35 +88,65 @@ def introduce(message):
     except FileNotFoundError:
         users = {}
     users[message.chat.id] = message.text
-    bot.send_message(message.chat.id, 'Вы благополучно зарегестрированы. Отправьте ссылку на рекламируемый твит')
+    bot.send_message(message.chat.id, 'Вы благополучно зарегестрированы. Отправьте ссылку на рекламируемый твит и действие с ним в формате:'\
+        ' https://twitter.com/user/0123456789876543210 Лайк'\
+        '              Возможные действия: Ретвит, Лайк, Твит, Подписка.')
     with open('users.json', 'w') as f:
         json.dump(users, f)
     user_step[message.chat.id] = 1
 
 
+def is_correct_link(link):
+    user_id = link.split('status')[-1][1:20]
+
+
+
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message):
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    retweet = types.InlineKeyboardButton('Ретвит', callback_data='retweet0')
-    like = types.InlineKeyboardButton('Лайк', callback_data='like0')
-    sub = types.InlineKeyboardButton('Подписка на автора', callback_data='sub0')
-    tweet = types.InlineKeyboardButton('Твит', callback_data='tweet0')
-    markup.add(retweet, like, sub, tweet)
+#    markup = types.InlineKeyboardMarkup(row_width=1)
+#    retweet = types.InlineKeyboardButton('Ретвит', callback_data='retweet0')
+#    like = types.InlineKeyboardButton('Лайк', callback_data='like0')
+#    sub = types.InlineKeyboardButton('Подписка на автора', callback_data='sub0')
+#    tweet = types.InlineKeyboardButton('Твит', callback_data='tweet0')
+#    markup.add(retweet, like, sub, tweet)
+    moder_id = 1802110885
 
+    try:
+        with open('tweets and actions.json', 'r') as f:
+            users = json.load(f)
+    except FileNotFoundError:
+        users = {}
+    users[message.chat.id] = message.text
     if user_step[message.chat.id] == -1:
         introduce(message)
         return
     elif user_step[message.chat.id] != 1:
         bot.send_message(message.chat.id, 'Не так быстро, для начала вызовите команду /sell')
         return
-    elif "https://twitter.com/" in message.text:  # TODO проверка на существование твита
-        bot.send_message(message.from_user.id, "Выберите действие, которое следует выполнить с твитом:",
-                         reply_markup=markup)  # TODO передача твита далее
+    elif "https://twitter.com/" in message.text or "https://mobile.twitter.com/" in message.text:
+        # TODO проверка на существование твита
+        with open('users.json', 'r') as f:
+            users = json.load(f)
+        bot.send_message(message.from_user.id, "Ваша заявка принята в обработку.")
+        bot.send_message(moder_id, f'{users[message.chat.id]}\n{message.text}\n')
     else:
         bot.send_message(message.chat.id, 'Это не корректная ссылка, попробуйте другую')
+    with open('tweets and actions.json', 'w') as f:
+        json.dump(users, f)
+        user_step[message.chat.id] = 1
+
+
+@bot.message_handler(commands=['buy'])
+def buy(message):
+    markup3 = types.InlineKeyboardMarkup(row_width=1)
+    tweet = types.InlineKeyboardButton('Продолжить', callback_data='con')
+    markup3.add(con)
+
+    send_mess = "Для продолжения, ваш аккаунт должен быть подтвержден. Для подтверждения обратитесь к модератору по команде /feedback. Если ваш аккаунт уже подтвержден, просто нажмите кнопку ниже."
+    bot.send_message(message.chat.id, send_mess, parse_mode='html', reply_markup=markup3)
 
 
 try:
-    bot.polling(none_stop=True, interval=0)
+    bot.polling(none_stop=True)
 except Exception:
     pass
